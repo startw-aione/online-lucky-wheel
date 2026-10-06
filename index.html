@@ -46,6 +46,17 @@
       margin-bottom: 6px;
     }
 
+    .status-badge {
+      display: inline-block;
+      font-size: 12px;
+      background: #e0e7ff;
+      color: #3730a3;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
     .creator-box {
       background: var(--card-bg);
       padding: 16px 20px;
@@ -217,11 +228,14 @@
       color: #4b5563;
       margin-top: 6px;
       margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     .history-table-container {
       width: 100%;
-      max-height: 150px;
+      max-height: 180px;
       overflow-y: auto;
       border: 1px solid var(--border);
       border-radius: 6px;
@@ -253,12 +267,12 @@
 <div class="container">
   <header>
     <h1>線上多功能輪盤</h1>
-    <p style="color: #6b7280; font-size: 14px;">支援自訂項目、色彩間隔呈現與歷史抽籤紀錄</p>
+    <div class="status-badge">自動儲存：所有輪盤、選項與歷史紀錄皆會永久保留</div>
   </header>
 
   <div class="creator-box">
     <input type="text" id="new-wheel-name" placeholder="輸入新輪盤名稱 (例如：午餐吃什麼、值日生分配)..." />
-    <button onclick="addNewWheel()">＋ 新增輪盤</button>
+    <button onclick="createNewWheelFromInput()">＋ 新增輪盤</button>
   </div>
 
   <div class="wheels-grid" id="wheels-grid"></div>
@@ -270,7 +284,38 @@ const COLOR_PALETTES = [
   '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'
 ];
 
+const STORAGE_KEY = 'lucky_wheels_data_v1';
 let wheels = {};
+
+// 儲存資料至 localStorage
+function saveToStorage() {
+  try {
+    const dataToSave = {};
+    for (const [id, w] of Object.entries(wheels)) {
+      dataToSave[id] = {
+        name: w.name,
+        options: w.options,
+        history: w.history,
+        currentAngle: w.currentAngle || 0
+      };
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+  } catch (e) {
+    console.error('儲存至 localStorage 失敗:', e);
+  }
+}
+
+// 從 localStorage 讀取資料
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('讀取 localStorage 失敗:', e);
+    return null;
+  }
+}
 
 function formatDateTime(d) {
   const pad = (n) => String(n).padStart(2, '0');
@@ -283,16 +328,15 @@ function formatDateTime(d) {
   return `${year}-${month}-${day} ${hours}:${mins}:${secs}`;
 }
 
-function addNewWheel(name = null, defaultOptions = ["選項 A", "選項 B", "選項 C", "選項 D"]) {
+function createNewWheelFromInput() {
   const input = document.getElementById('new-wheel-name');
-  const wheelName = name || input.value.trim() || `輪盤 #${Object.keys(wheels).length + 1}`;
-  if (!name) input.value = '';
+  const wheelName = input.value.trim() || `輪盤 #${Object.keys(wheels).length + 1}`;
+  input.value = '';
 
   const id = 'wheel_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-
   wheels[id] = {
     name: wheelName,
-    options: [...defaultOptions],
+    options: ["選項 A", "選項 B", "選項 C", "選項 D"],
     currentAngle: 0,
     isSpinning: false,
     history: []
@@ -300,6 +344,7 @@ function addNewWheel(name = null, defaultOptions = ["選項 A", "選項 B", "選
 
   renderWheelCard(id);
   drawWheel(id);
+  saveToStorage();
 }
 
 function renderWheelCard(id) {
@@ -309,6 +354,8 @@ function renderWheelCard(id) {
   const card = document.createElement('div');
   card.className = 'wheel-card';
   card.id = `card-${id}`;
+
+  const historyHtml = generateHistoryRows(wheel.history);
 
   card.innerHTML = `
     <div class="wheel-title">
@@ -330,7 +377,9 @@ function renderWheelCard(id) {
 
     <div class="result-banner" id="result-${id}">等待抽籤...</div>
 
-    <div class="history-header">歷史紀錄：</div>
+    <div class="history-header">
+      <span>歷史紀錄（共 ${wheel.history.length} 筆）：</span>
+    </div>
     <div class="history-table-container">
       <table>
         <thead>
@@ -340,7 +389,7 @@ function renderWheelCard(id) {
           </tr>
         </thead>
         <tbody id="history-${id}">
-          <tr><td colspan="2" style="color:#9ca3af; text-align:center;">尚無紀錄</td></tr>
+          ${historyHtml}
         </tbody>
       </table>
     </div>
@@ -349,11 +398,24 @@ function renderWheelCard(id) {
   grid.appendChild(card);
 }
 
+function generateHistoryRows(historyList) {
+  if (!historyList || historyList.length === 0) {
+    return `<tr><td colspan="2" style="color:#9ca3af; text-align:center;">尚無紀錄</td></tr>`;
+  }
+  return historyList.map(item => `
+    <tr>
+      <td style="color:#6b7280;">${item.time}</td>
+      <td style="font-weight:600; color:#111827;">${item.text}</td>
+    </tr>
+  `).join('');
+}
+
 function updateOptions(id) {
   const text = document.getElementById(`text-${id}`).value;
   const rawList = text.split(/[\n,，]+/).map(s => s.trim()).filter(s => s.length > 0);
   wheels[id].options = rawList.length > 0 ? rawList : ["(暫無選項)"];
   drawWheel(id);
+  saveToStorage();
 }
 
 function drawWheel(id) {
@@ -468,27 +530,66 @@ function finalizeSpin(id) {
   resultBanner.style.border = '1px solid #facc15';
   resultBanner.innerHTML = `🎉 結果：<strong style="font-size:20px; margin-left:4px; text-decoration: underline;">${selectedResult}</strong>`;
 
-  // 記錄至歷史紀錄
+  // 記錄至歷史紀錄（插入最前方，永久保留）
   const recordTime = formatDateTime(new Date());
   wheel.history.unshift({ time: recordTime, text: selectedResult });
 
+  // 更新畫面上的表格
   const historyTbody = document.getElementById(`history-${id}`);
-  historyTbody.innerHTML = wheel.history.map(item => `
-    <tr>
-      <td style="color:#6b7280;">${item.time}</td>
-      <td style="font-weight:600; color:#111827;">${item.text}</td>
-    </tr>
-  `).join('');
+  historyTbody.innerHTML = generateHistoryRows(wheel.history);
+
+  // 更新筆數顯示
+  const headerSpan = document.querySelector(`#card-${id} .history-header span`);
+  if (headerSpan) headerSpan.innerText = `歷史紀錄（共 ${wheel.history.length} 筆）：`;
+
+  // 立即寫入本地儲存
+  saveToStorage();
 }
 
 function removeWheel(id) {
+  if (!confirm(`確定要刪除「${wheels[id].name}」嗎？包含的歷史紀錄也會一併清除。`)) {
+    return;
+  }
   delete wheels[id];
   const card = document.getElementById(`card-${id}`);
   if (card) card.remove();
+  saveToStorage();
 }
 
-// 預設建立第一個範例輪盤
-addNewWheel("午餐吃什麼？", ["日式拉麵", "牛肉麵", "健康餐盒", "麥當勞", "義大利麵", "鐵板燒"]);
+// 初始化頁面：讀取已有紀錄或建立預設輪盤
+function initApp() {
+  const saved = loadFromStorage();
+
+  if (saved && Object.keys(saved).length > 0) {
+    for (const [id, data] of Object.entries(saved)) {
+      wheels[id] = {
+        name: data.name,
+        options: data.options || ["選項 A", "選項 B"],
+        currentAngle: data.currentAngle || 0,
+        isSpinning: false,
+        history: data.history || []
+      };
+      renderWheelCard(id);
+      drawWheel(id);
+    }
+  } else {
+    // 首次進入時的預設輪盤
+    const defaultId = 'wheel_' + Date.now();
+    wheels[defaultId] = {
+      name: "午餐吃什麼？",
+      options: ["日式拉麵", "牛肉麵", "健康餐盒", "麥當勞", "義大利麵", "鐵板燒"],
+      currentAngle: 0,
+      isSpinning: false,
+      history: []
+    };
+    renderWheelCard(defaultId);
+    drawWheel(defaultId);
+    saveToStorage();
+  }
+}
+
+// 啟動應用
+initApp();
 </script>
 </body>
 </html>
