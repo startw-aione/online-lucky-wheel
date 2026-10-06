@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多功能線上輪盤抽籤工具</title>
+  <style>
+    :root {
+      --bg-color: #f3f4f6;
+      --card-bg: #ffffff;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --text: #1f2937;
+      --border: #e5e7eb;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background-color: var(--bg-color);
+      padding: 30px 16px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #111827;
+      margin-bottom: 6px;
+    }
+
+    .creator-box {
+      background: var(--card-bg);
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      margin-bottom: 28px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .creator-box input {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 15px;
+      flex: 1;
+      min-width: 240px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .creator-box input:focus {
+      border-color: var(--primary);
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 22px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s, transform 0.1s;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .wheels-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 24px;
+    }
+
+    .wheel-card {
+      background: var(--card-bg);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .wheel-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      width: 100%;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .close-btn {
+      background: transparent;
+      color: #9ca3af;
+      font-size: 18px;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .close-btn:hover {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    .option-controls {
+      width: 100%;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .option-controls label {
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .option-controls textarea {
+      width: 100%;
+      resize: vertical;
+      min-height: 56px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      margin: 8px 0 16px 0;
+    }
+
+    canvas {
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .pointer {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
+      border-top: 26px solid #ef4444;
+      z-index: 10;
+      filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+    }
+
+    .result-banner {
+      width: 100%;
+      min-height: 48px;
+      background: #f8fafc;
+      color: #64748b;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 600;
+      margin: 12px 0;
+      text-align: center;
+      padding: 6px 12px;
+      transition: all 0.3s ease;
+    }
+
+    .history-header {
+      width: 100%;
+      font-size: 13px;
+      font-weight: bold;
+      color: #4b5563;
+      margin-top: 6px;
+      margin-bottom: 4px;
+    }
+
+    .history-table-container {
+      width: 100%;
+      max-height: 150px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background-color: #f9fafb;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>線上多功能輪盤</h1>
+    <p style="color: #6b7280; font-size: 14px;">支援自訂項目、色彩間隔呈現與歷史抽籤紀錄</p>
+  </header>
+
+  <div class="creator-box">
+    <input type="text" id="new-wheel-name" placeholder="輸入新輪盤名稱 (例如：午餐吃什麼、值日生分配)..." />
+    <button onclick="addNewWheel()">＋ 新增輪盤</button>
+  </div>
+
+  <div class="wheels-grid" id="wheels-grid"></div>
+</div>
+
+<script>
+const COLOR_PALETTES = [
+  '#3B82F6', '#10B981', '#F59E0B', '#EF4444', 
+  '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'
+];
+
+let wheels = {};
+
+function formatDateTime(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const mins = pad(d.getMinutes());
+  const secs = pad(d.getSeconds());
+  return `${year}-${month}-${day} ${hours}:${mins}:${secs}`;
+}
+
+function addNewWheel(name = null, defaultOptions = ["選項 A", "選項 B", "選項 C", "選項 D"]) {
+  const input = document.getElementById('new-wheel-name');
+  const wheelName = name || input.value.trim() || `輪盤 #${Object.keys(wheels).length + 1}`;
+  if (!name) input.value = '';
+
+  const id = 'wheel_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+
+  wheels[id] = {
+    name: wheelName,
+    options: [...defaultOptions],
+    currentAngle: 0,
+    isSpinning: false,
+    history: []
+  };
+
+  renderWheelCard(id);
+  drawWheel(id);
+}
+
+function renderWheelCard(id) {
+  const grid = document.getElementById('wheels-grid');
+  const wheel = wheels[id];
+
+  const card = document.createElement('div');
+  card.className = 'wheel-card';
+  card.id = `card-${id}`;
+
+  card.innerHTML = `
+    <div class="wheel-title">
+      <span>${wheel.name}</span>
+      <button class="close-btn" onclick="removeWheel('${id}')">✕</button>
+    </div>
+    
+    <div class="option-controls">
+      <label>選項清單（以逗號或換行分隔）：</label>
+      <textarea id="text-${id}" oninput="updateOptions('${id}')">${wheel.options.join('\n')}</textarea>
+    </div>
+
+    <div class="canvas-wrapper">
+      <div class="pointer"></div>
+      <canvas id="canvas-${id}" width="300" height="300"></canvas>
+    </div>
+
+    <button id="spin-btn-${id}" style="width:100%; margin-top:6px;" onclick="spinWheel('${id}')">開始旋轉！</button>
+
+    <div class="result-banner" id="result-${id}">等待抽籤...</div>
+
+    <div class="history-header">歷史紀錄：</div>
+    <div class="history-table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:50%;">時間</th>
+            <th>抽取結果</th>
+          </tr>
+        </thead>
+        <tbody id="history-${id}">
+          <tr><td colspan="2" style="color:#9ca3af; text-align:center;">尚無紀錄</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  grid.appendChild(card);
+}
+
+function updateOptions(id) {
+  const text = document.getElementById(`text-${id}`).value;
+  const rawList = text.split(/[\n,，]+/).map(s => s.trim()).filter(s => s.length > 0);
+  wheels[id].options = rawList.length > 0 ? rawList : ["(暫無選項)"];
+  drawWheel(id);
+}
+
+function drawWheel(id) {
+  const wheel = wheels[id];
+  const canvas = document.getElementById(`canvas-${id}`);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const numOptions = wheel.options.length;
+  const arcSize = (2 * Math.PI) / numOptions;
+  const radius = canvas.width / 2;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (let i = 0; i < numOptions; i++) {
+    const angle = wheel.currentAngle + i * arcSize;
+    ctx.beginPath();
+    ctx.moveTo(radius, radius);
+    ctx.arc(radius, radius, radius - 4, angle, angle + arcSize);
+    ctx.fillStyle = COLOR_PALETTES[i % COLOR_PALETTES.length];
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 繪製文字
+    ctx.save();
+    ctx.translate(radius, radius);
+    ctx.rotate(angle + arcSize / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 3;
+    
+    let text = wheel.options[i];
+    if (text.length > 9) text = text.substring(0, 8) + '...';
+    ctx.fillText(text, radius - 18, 5);
+    ctx.restore();
+  }
+
+  // 繪製中心圓
+  ctx.beginPath();
+  ctx.arc(radius, radius, 12, 0, 2 * Math.PI);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function spinWheel(id) {
+  const wheel = wheels[id];
+  if (wheel.isSpinning) return;
+
+  const btn = document.getElementById(`spin-btn-${id}`);
+  const resultBanner = document.getElementById(`result-${id}`);
+  
+  wheel.isSpinning = true;
+  btn.disabled = true;
+  resultBanner.style.backgroundColor = '#eef2ff';
+  resultBanner.style.color = '#4338ca';
+  resultBanner.style.border = '1px solid #c7d2fe';
+  resultBanner.innerText = '旋轉中...';
+
+  // 隨機轉動圈數（5 ~ 8 圈）加上隨機角度
+  const extraDegrees = Math.floor(Math.random() * 360) + 1800;
+  const totalRadianDelta = (extraDegrees * Math.PI) / 180;
+  
+  const startAngle = wheel.currentAngle;
+  const targetAngle = startAngle + totalRadianDelta;
+  const duration = 4000;
+  const startTime = performance.now();
+
+  function animate(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // Ease-out Cubic 減速曲線
+    const easeOut = 1 - Math.pow(1 - progress, 3);
+    wheel.currentAngle = startAngle + (targetAngle - startAngle) * easeOut;
+
+    drawWheel(id);
+
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      wheel.isSpinning = false;
+      btn.disabled = false;
+      finalizeSpin(id);
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
+function finalizeSpin(id) {
+  const wheel = wheels[id];
+  const numOptions = wheel.options.length;
+  const arcSize = (2 * Math.PI) / numOptions;
+  
+  // 指針固定在上方 (-Math.PI / 2)
+  let normalized = (-Math.PI / 2 - wheel.currentAngle) % (2 * Math.PI);
+  if (normalized < 0) normalized += 2 * Math.PI;
+
+  const winningIndex = Math.floor(normalized / arcSize) % numOptions;
+  const selectedResult = wheel.options[winningIndex];
+
+  // 醒目顯示結果
+  const resultBanner = document.getElementById(`result-${id}`);
+  resultBanner.style.backgroundColor = '#fef08a';
+  resultBanner.style.color = '#854d0e';
+  resultBanner.style.border = '1px solid #facc15';
+  resultBanner.innerHTML = `🎉 結果：<strong style="font-size:20px; margin-left:4px; text-decoration: underline;">${selectedResult}</strong>`;
+
+  // 記錄至歷史紀錄
+  const recordTime = formatDateTime(new Date());
+  wheel.history.unshift({ time: recordTime, text: selectedResult });
+
+  const historyTbody = document.getElementById(`history-${id}`);
+  historyTbody.innerHTML = wheel.history.map(item => `
+    <tr>
+      <td style="color:#6b7280;">${item.time}</td>
+      <td style="font-weight:600; color:#111827;">${item.text}</td>
+    </tr>
+  `).join('');
+}
+
+function removeWheel(id) {
+  delete wheels[id];
+  const card = document.getElementById(`card-${id}`);
+  if (card) card.remove();
+}
+
+// 預設建立第一個範例輪盤
+addNewWheel("午餐吃什麼？", ["日式拉麵", "牛肉麵", "健康餐盒", "麥當勞", "義大利麵", "鐵板燒"]);
+</script>
+</body>
+</html>
